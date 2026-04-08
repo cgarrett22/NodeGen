@@ -15,6 +15,25 @@
     position: fixed; top: 0; left: 0; right: 0;
     height: 120px; background: #000; color: #0f0;
     font-size: 12px; display: none;
+
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    touch-action: none;
+    overscroll-behavior: none;
+    background: #111;
+    color: white;
+    font-family: sans-serif;
+  }
+
+  canvas {
+    display: block;
+    background: #222;
+    touch-action: none;
+  }
+</style>
   }
 </style>
 </head>
@@ -70,7 +89,8 @@ function screenToWorld(x,y){
   return { x: (x-offsetX)/scale, y: (y-offsetY)/scale };
 }
 
-canvas.addEventListener('pointerdown', e=>{
+canvas.addEventListener('pointerdown', e => {
+  e.preventDefault()
   const rect = canvas.getBoundingClientRect();
   const p = screenToWorld(e.clientX, e.clientY);
 
@@ -107,7 +127,8 @@ canvas.addEventListener('pointerdown', e=>{
   }
 });
 
-canvas.addEventListener('pointermove', e=>{
+canvas.addEventListener('pointermove', e => {
+  e.preventDefault()
   if(!dragging) return;
 
   const p = screenToWorld(e.clientX, e.clientY);
@@ -121,10 +142,12 @@ canvas.addEventListener('pointermove', e=>{
   }
 });
 
-canvas.addEventListener('pointerup', ()=> dragging=null);
+canvas.addEventListener('up', e => {
+  e.preventDefault()
 
 canvas.addEventListener('wheel', e=>{
   const zoom = e.deltaY < 0 ? 1.1 : 0.9;
+e.preventDefault();
   scale *= zoom;
 });
 
@@ -143,7 +166,7 @@ function fitImage() {
 function getNodeAt(x,y){
   for(const id in nodes){
     const n = nodes[id];
-    if(Math.hypot(n.x-x, n.y-y) < 20) return id;
+    if (Math.hypot(n.x - x, n.y - y) < 30) return id;
   }
   return null;
 }
