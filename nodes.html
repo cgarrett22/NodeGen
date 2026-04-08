@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Node Editor</title>
+<style>
+  body { margin: 0; background: #111; color: white; font-family: sans-serif; }
+  canvas { display: block; background: #222; touch-action: none; }
+  #toolbar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: #000; padding: 8px; display: flex; gap: 6px;
+  }
+  button { flex: 1; padding: 10px; font-size: 16px; }
+  textarea {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: 120px; background: #000; color: #0f0;
+    font-size: 12px; display: none;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<textarea id="output"></textarea>
+<input type="file" id="bgLoader" accept="image/*" style="position:fixed;top:0;right:0;z-index:10;">
+<div id="toolbar">
+  <button onclick="mode='add'">Add</button>
+  <button onclick="mode='connect'">Cnct</button>
+  <button onclick="mode='move'">Move</button>
+  <button onclick="mode='delete'">Del</button>
+<button onclick="fitImage()">Fit</button>
+  <button onclick="toggleGrid()">Grid</button>
+  <button onclick="exportData()">Exprt</button>
+</div>
+
+<script>
+let bgImage = null;
+
+document.getElementById("bgLoader").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const img = new Image();
+  img.onload = () => {
+    bgImage = img;
+  };
+  img.src = URL.createObjectURL(file);
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let nodes = {};
+let selected = null;
+let mode = 'add';
+let grid = true;
+let scale = 1;
+let offsetX = 0;
+let offsetY = 0;
+let dragging = null;
+let idCounter = 1;
+
+function worldToScreen(x,y){
+  return { x: x*scale + offsetX, y: y*scale + offsetY };
+}
+function screenToWorld(x,y){
+  return { x: (x-offsetX)/scale, y: (y-offsetY)/scale };
+}
+
+canvas.addEventListener('pointerdown', e=>{
+  const rect = canvas.getBoundingClientRect();
+  const p = screenToWorld(e.clientX, e.clientY);
+
+  const hit = getNodeAt(p.x, p.y);
+
+  if(mode==='add'){
+    const id = "N" + idCounter++;
+    nodes[id] = { id, x:p.x, y:p.y, neighbors:[] };
+  }
+
+  else if(mode==='connect'){
+    if(hit){
+      if(!selected){
+        selected = hit;
+      } else {
+        toggleConnection(selected, hit);
+        selected = null;
+      }
+    }
+  }
+
+  else if(mode==='move'){
+    if(hit){
+      dragging = hit;
+    } else {
+      dragging = "pan";
+    }
+  }
+
+  else if(mode==='delete'){
+    if(hit){
+      deleteNode(hit);
+    }
+  }
+});
+
+canvas.addEventListener('pointermove', e=>{
+  if(!dragging) return;
+
+  const p = screenToWorld(e.clientX, e.clientY);
+
+  if(dragging==="pan"){
+    offsetX += e.movementX;
+    offsetY += e.movementY;
+  } else {
+    nodes[dragging].x = p.x;
+    nodes[dragging].y = p.y;
+  }
+});
+
+canvas.addEventListener('pointerup', ()=> dragging=null);
+
+canvas.addEventListener('wheel', e=>{
+  const zoom = e.deltaY < 0 ? 1.1 : 0.9;
+  scale *= zoom;
+});
+
+function fitImage() {
+  if (!bgImage) return;
+
+  scale = Math.min(
+    canvas.width / bgImage.width,
+    canvas.height / bgImage.height
+  );
+
+  offsetX = (canvas.width - bgImage.width * scale) / 2;
+  offsetY = (canvas.height - bgImage.height * scale) / 2;
+}
+
+function getNodeAt(x,y){
+  for(const id in nodes){
+    const n = nodes[id];
+    if(Math.hypot(n.x-x, n.y-y) < 20) return id;
+  }
+  return null;
+}
+
+function toggleConnection(a,b){
+  const A = nodes[a], B = nodes[b];
+
+  if(A.neighbors.includes(b)){
+    A.neighbors = A.neighbors.filter(n=>n!==b);
+    B.neighbors = B.neighbors.filter(n=>n!==a);
+  } else {
+    A.neighbors.push(b);
+    B.neighbors.push(a);
+  }
+}
+
+function deleteNode(id){
+  for(const k in nodes){
+    nodes[k].neighbors = nodes[k].neighbors.filter(n=>n!==id);
+  }
+  delete nodes[id];
+}
+
+function toggleGrid(){
+  grid = !grid;
+}
+
+function exportData(){
+  const out = document.getElementById('output');
+  out.style.display = 'block';
+  out.value = JSON.stringify(nodes, null, 2);
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+if (bgImage) {
+  const topLeft = worldToScreen(0, 0);
+  const w = bgImage.width * scale;
+  const h = bgImage.height * scale;
+
+  ctx.drawImage(bgImage, topLeft.x, topLeft.y, w, h);
+}
+
+  if(grid){
+    ctx.strokeStyle="#333";
+    for(let x=0;x<canvas.width;x+=100){
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
+    }
+    for(let y=0;y<canvas.height;y+=100){
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke();
+    }
+  }
+
+  // draw connections
+  ctx.strokeStyle="#888";
+  for(const id in nodes){
+    const n = nodes[id];
+    for(const nb of n.neighbors){
+      const a = worldToScreen(n.x,n.y);
+      const b = worldToScreen(nodes[nb].x,nodes[nb].y);
+      ctx.beginPath();
+      ctx.moveTo(a.x,a.y);
+      ctx.lineTo(b.x,b.y);
+      ctx.stroke();
+    }
+  }
+
+  // draw nodes
+  for(const id in nodes){
+    const n = nodes[id];
+    const p = worldToScreen(n.x,n.y);
+
+    ctx.fillStyle = (id===selected) ? "#0f0" : "#fff";
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,10,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.fillText(id, p.x+12, p.y);
+  }
+
+  requestAnimationFrame(draw);
+}
+
+draw();
+</script>
+</body>
+</html>
