@@ -1,257 +1,362 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>Node Editor</title>
-<style>
-  body { margin: 0; background: #111; color: white; font-family: sans-serif; }
-  canvas { display: block; background: #222; touch-action: none; }
-  #toolbar {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    background: #000; padding: 8px; display: flex; gap: 6px;
-  }
-  button { flex: 1; padding: 10px; font-size: 16px; }
-  textarea {
-    position: fixed; top: 0; left: 0; right: 0;
-    height: 120px; background: #000; color: #0f0;
-    font-size: 12px; display: none;
 
 <style>
-  html, body {
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    touch-action: none;
-    overscroll-behavior: none;
-    background: #111;
-    color: white;
-    font-family: sans-serif;
-  }
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #111;
+  color: twhite;
+  font-family: Arial, sans-serif;
+}
 
-  canvas {
-    display: block;
-    background: #222;
-    touch-action: none;
-  }
-</style>
-  }
+canvas {
+  display: block;
+  background: #222;
+  touch-action: none; 
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#bgLoader {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 60;
+  background: rgba(0,0,0,0.7);
+  color: white;
+  padding: 6px;
+  border-radius: 6px;
+  font-size: 10px;
+}
+
+#outputWrap {
+  position: fixed;
+  top: 48px;
+  left: 8px;
+  right: 8px;
+  height: 160px;
+  background: #000;
+  border-radius: 8px;
+  z-index: 100;
+  display: none;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+
+#output {
+  width: 100%;
+  height: 100%;
+  background: #000;
+  color: #0f0;
+  font-size: 11px;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 30px 10px 10px 10px;
+  box-sizing: border-box;
+  touch-action: auto !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+#closeOutput {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 110;
+  background: #900;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-weight: bold;
+}
+
+#toolbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0,0,0,0.92);
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  z-index: 50;
+}
+
+button {
+  padding: 8px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: none;
+  background: #333;
+  color: white;
+}
+
+button.active { background: #0a7cff; }
 </style>
 </head>
+
 <body>
 
+<input type="file" id="bgLoader" accept="image/*">
+
+<div id="outputWrap">
+  <button id="closeOutput" onclick="toggleOutput()">✖</button>
+  <textarea id="output" spellcheck="false"></textarea>
+</div>
+
 <canvas id="c"></canvas>
-<textarea id="output"></textarea>
-<input type="file" id="bgLoader" accept="image/*" style="position:fixed;top:0;right:0;z-index:10;">
+
 <div id="toolbar">
-  <button onclick="mode='add'">Add</button>
-  <button onclick="mode='connect'">Cnct</button>
-  <button onclick="mode='move'">Move</button>
-  <button onclick="mode='delete'">Del</button>
+<button id="btn-none" onclick="setMode('none')">Pan</button>
+<button id="btn-add" onclick="setMode('add')">Add</button>
+<button id="btn-connect" onclick="setMode('connect')">Link</button>
+<button id="btn-move" onclick="setMode('move')">Move</button>
+<button id="btn-delete" onclick="setMode('delete')">Del</button>
+
+<button id="btn-grid" onclick="toggleGrid()">Grid</button>
+<button id="btn-shift" onclick="toggleFitOffset()">Shift</button>
+<button id="btn-snap" onclick="toggleSnap()">Snap</button>
+
 <button onclick="fitImage()">Fit</button>
-  <button onclick="toggleGrid()">Grid</button>
-  <button onclick="exportData()">Exprt</button>
+<button onclick="exportData()">Export</button>
+<button onclick="importData()">Import</button>
 </div>
 
 <script>
-let bgImage = null;
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const output = document.getElementById("output");
+const wrap = document.getElementById("outputWrap");
 
-document.getElementById("bgLoader").addEventListener("change", (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+// --- INTERACTION FIXES ---
+document.addEventListener("contextmenu", e => {
+  if (e.target.closest("#outputWrap")) return;
+  e.preventDefault();
+}, { passive: false });
 
-  const img = new Image();
-  img.onload = () => {
-    bgImage = img;
-  };
-  img.src = URL.createObjectURL(file);
-});
+document.addEventListener("selectstart", e => {
+  if (e.target.closest("#outputWrap")) return;
+  e.preventDefault();
+}, { passive: false });
 
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
+function resizeCanvas(){
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
+// --- STATE ---
 let nodes = {};
 let selected = null;
-let mode = 'add';
+let mode = "none";
 let grid = true;
 let scale = 1;
 let offsetX = 0;
 let offsetY = 0;
 let dragging = null;
 let idCounter = 1;
+let bgImage = null;
+let fitOffsetMode = false;
+let snapToGrid = false;
+let importArmed = false;
 
-function worldToScreen(x,y){
-  return { x: x*scale + offsetX, y: y*scale + offsetY };
-}
-function screenToWorld(x,y){
-  return { x: (x-offsetX)/scale, y: (y-offsetY)/scale };
-}
-
-canvas.addEventListener('pointerdown', e => {
-  e.preventDefault()
-  const rect = canvas.getBoundingClientRect();
-  const p = screenToWorld(e.clientX, e.clientY);
-
-  const hit = getNodeAt(p.x, p.y);
-
-  if(mode==='add'){
-    const id = "N" + idCounter++;
-    nodes[id] = { id, x:p.x, y:p.y, neighbors:[] };
-  }
-
-  else if(mode==='connect'){
-    if(hit){
-      if(!selected){
-        selected = hit;
-      } else {
-        toggleConnection(selected, hit);
-        selected = null;
-      }
-    }
-  }
-
-  else if(mode==='move'){
-    if(hit){
-      dragging = hit;
-    } else {
-      dragging = "pan";
-    }
-  }
-
-  else if(mode==='delete'){
-    if(hit){
-      deleteNode(hit);
-    }
-  }
+// --- IMAGE LOADER ---
+document.getElementById("bgLoader").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const img = new Image();
+  img.onload = () => {
+    bgImage = img;
+    fitImage();
+  };
+  img.src = URL.createObjectURL(file);
 });
 
-canvas.addEventListener('pointermove', e => {
-  e.preventDefault()
-  if(!dragging) return;
+// --- TOOL FUNCTIONS ---
+function snap(v){ return Math.round(v/25)*25; }
+function applySnap(x,y){ return snapToGrid ? {x:snap(x), y:snap(y)} : {x,y}; }
 
-  const p = screenToWorld(e.clientX, e.clientY);
-
-  if(dragging==="pan"){
-    offsetX += e.movementX;
-    offsetY += e.movementY;
-  } else {
-    nodes[dragging].x = p.x;
-    nodes[dragging].y = p.y;
-  }
-});
-
-canvas.addEventListener('up', e => {
-  e.preventDefault()
-
-canvas.addEventListener('wheel', e=>{
-  const zoom = e.deltaY < 0 ? 1.1 : 0.9;
-e.preventDefault();
-  scale *= zoom;
-});
-
-function fitImage() {
-  if (!bgImage) return;
-
-  scale = Math.min(
-    canvas.width / bgImage.width,
-    canvas.height / bgImage.height
-  );
-
-  offsetX = (canvas.width - bgImage.width * scale) / 2;
-  offsetY = (canvas.height - bgImage.height * scale) / 2;
+function setMode(m){
+  mode = m;
+  selected = null;
+  updateButtons();
 }
 
-function getNodeAt(x,y){
-  for(const id in nodes){
+function toggleGrid(){ grid = !grid; updateButtons(); }
+function toggleSnap(){ snapToGrid = !snapToGrid; updateButtons(); }
+function toggleFitOffset(){ fitOffsetMode = !fitOffsetMode; fitImage(); updateButtons(); }
+
+function toggleOutput() {
+  wrap.style.display = (wrap.style.display === "none" || !wrap.style.display) ? "block" : "none";
+  if (wrap.style.display === "none") importArmed = false;
+}
+
+function updateButtons(){
+  ["none","add","connect","move","delete"].forEach(m=>{
+    const btn = document.getElementById("btn-"+m);
+    if(btn) btn.classList.toggle("active", mode === m);
+  });
+  document.getElementById("btn-grid").classList.toggle("active", grid);
+  document.getElementById("btn-shift").classList.toggle("active", fitOffsetMode);
+  document.getElementById("btn-snap").classList.toggle("active", snapToGrid);
+}
+
+function fitImage(){
+  if(!bgImage) return;
+  scale = Math.min(canvas.width/bgImage.width, canvas.height/bgImage.height);
+  offsetX = (canvas.width - bgImage.width*scale)/2;
+  let y = (canvas.height - bgImage.height*scale)/2;
+  if(fitOffsetMode) y -= 80;
+  offsetY = y;
+}
+
+// --- DATA I/O ---
+function exportData() {
+  wrap.style.display = "block";
+  output.readOnly = false;
+  const lines = ["const levelNodes = {"];
+  const ids = Object.keys(nodes);
+  ids.forEach((id, i) => {
     const n = nodes[id];
-    if (Math.hypot(n.x - x, n.y - y) < 30) return id;
+    const nbs = n.neighbors.map(nb => `"${nb}"`).join(", ");
+    lines.push(`  ${id}: { id: "${id}", x: ${Math.round(n.x)}, y: ${Math.round(n.y)}, neighbors: [${nbs}] }${i < ids.length-1 ? "," : ""}`);
+  });
+  lines.push("};");
+  output.value = lines.join("\n");
+  output.focus();
+  output.select();
+  document.execCommand("copy");
+}
+
+function importData() {
+  wrap.style.display = "block";
+  if (!importArmed) {
+    importArmed = true;
+    output.readOnly = false;
+    output.value = "";
+    output.placeholder = "Paste nodes, then tap Import again";
+    output.focus();
+    return;
   }
-  return null;
+  try {
+    let text = output.value.trim().replace(/const\s+\w+\s*=\s*/, "").replace(/;$/, "");
+    const parsed = eval("(" + text + ")");
+    const source = parsed.nodes || parsed;
+    nodes = {};
+    for (const id in source) {
+      nodes[id] = { id, x: source[id].x, y: source[id].y, neighbors: source[id].neighbors || [] };
+    }
+    idCounter = Object.keys(nodes).length + 1;
+    importArmed = false;
+    wrap.style.display = "none";
+    alert("Import Success!");
+  } catch (err) { alert("Import Failed"); }
 }
 
-function toggleConnection(a,b){
-  const A = nodes[a], B = nodes[b];
+// --- COORDS ---
+function world(x,y){ return { x:(x-offsetX)/scale, y:(y-offsetY)/scale }; }
+function screen(x,y){ return { x:x*scale+offsetX, y:y*scale+offsetY }; }
 
-  if(A.neighbors.includes(b)){
-    A.neighbors = A.neighbors.filter(n=>n!==b);
-    B.neighbors = B.neighbors.filter(n=>n!==a);
-  } else {
-    A.neighbors.push(b);
-    B.neighbors.push(a);
+// --- EVENTS ---
+canvas.addEventListener("pointerdown", e=>{
+  const p = world(e.clientX,e.clientY);
+  const hit = Object.keys(nodes).find(id => Math.hypot(nodes[id].x-p.x, nodes[id].y-p.y) < 30);
+
+  if(mode==="none") { dragging="pan"; return; }
+  if(mode==="add"){
+    const pt = applySnap(p.x,p.y);
+    const id = "N" + idCounter++;
+    nodes[id] = { id, x: pt.x, y: pt.y, neighbors: [] };
+  } else if(mode==="connect" && hit){
+    if(!selected) selected = hit;
+    else if(selected !== hit){
+      const a = nodes[selected], b = nodes[hit];
+      if(a.neighbors.includes(hit)){
+        a.neighbors = a.neighbors.filter(n=>n!==hit);
+        b.neighbors = b.neighbors.filter(n=>n!==selected);
+      } else {
+        a.neighbors.push(hit); b.neighbors.push(selected);
+      }
+      navigator.vibrate?.(10);
+      selected = null;
+    }
+  } else if(mode==="move"){ dragging = hit || "pan"; }
+  else if(mode==="delete" && hit){
+    delete nodes[hit];
+    Object.values(nodes).forEach(n => n.neighbors = n.neighbors.filter(nb => nb !== hit));
   }
-}
+});
 
-function deleteNode(id){
-  for(const k in nodes){
-    nodes[k].neighbors = nodes[k].neighbors.filter(n=>n!==id);
+canvas.addEventListener("pointermove", e=>{
+  if(!dragging) return;
+  if(dragging==="pan"){ offsetX+=e.movementX; offsetY+=e.movementY; }
+  else {
+    const p = world(e.clientX, e.clientY);
+    const pt = applySnap(p.x, p.y);
+    nodes[dragging].x = pt.x; nodes[dragging].y = pt.y;
   }
-  delete nodes[id];
-}
+});
 
-function toggleGrid(){
-  grid = !grid;
-}
+canvas.addEventListener("pointerup", () => dragging = null);
+canvas.addEventListener("wheel", e => {
+  const zoom = e.deltaY < 0 ? 1.1 : 0.9;
+  scale = Math.max(0.1, Math.min(10, scale * zoom));
+});
 
-function exportData(){
-  const out = document.getElementById('output');
-  out.style.display = 'block';
-  out.value = JSON.stringify(nodes, null, 2);
-}
-
+// --- DRAW ---
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-if (bgImage) {
-  const topLeft = worldToScreen(0, 0);
-  const w = bgImage.width * scale;
-  const h = bgImage.height * scale;
-
-  ctx.drawImage(bgImage, topLeft.x, topLeft.y, w, h);
-}
+  if(bgImage){
+    const p = screen(0,0);
+    ctx.drawImage(bgImage, p.x, p.y, bgImage.width*scale, bgImage.height*scale);
+  }
 
   if(grid){
-    ctx.strokeStyle="#333";
-    for(let x=0;x<canvas.width;x+=100){
+    ctx.strokeStyle = "rgba(255,255,255,0.15)";
+    ctx.lineWidth = 1;
+    for(let x = offsetX%(25*scale); x < canvas.width; x += 25*scale){
       ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
     }
-    for(let y=0;y<canvas.height;y+=100){
+    for(let y = offsetY%(25*scale); y < canvas.height; y += 25*scale){
       ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke();
     }
   }
 
-  // draw connections
-  ctx.strokeStyle="#888";
-  for(const id in nodes){
-    const n = nodes[id];
-    for(const nb of n.neighbors){
-      const a = worldToScreen(n.x,n.y);
-      const b = worldToScreen(nodes[nb].x,nodes[nb].y);
-      ctx.beginPath();
-      ctx.moveTo(a.x,a.y);
-      ctx.lineTo(b.x,b.y);
-      ctx.stroke();
-    }
-  }
+  const drawn = new Set();
+  Object.values(nodes).forEach(n => {
+    n.neighbors.forEach(nbId => {
+      const key = [n.id, nbId].sort().join("|");
+      if(drawn.has(key) || !nodes[nbId]) return;
+      const a = screen(n.x, n.y), b = screen(nodes[nbId].x, nodes[nbId].y);
+      ctx.shadowColor = "#00ffff"; ctx.shadowBlur = 6;
+      ctx.strokeStyle = (n.id===selected || nbId===selected) ? "#00ff99" : "#66ccff";
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.shadowBlur = 0;
+      drawn.add(key);
+    });
+  });
 
-  // draw nodes
-  for(const id in nodes){
-    const n = nodes[id];
-    const p = worldToScreen(n.x,n.y);
-
-    ctx.fillStyle = (id===selected) ? "#0f0" : "#fff";
-    ctx.beginPath();
-    ctx.arc(p.x,p.y,10,0,Math.PI*2);
-    ctx.fill();
-
-    ctx.fillText(id, p.x+12, p.y);
-  }
+  Object.values(nodes).forEach(n => {
+    const p = screen(n.x, n.y);
+    ctx.fillStyle = (n.id === selected) ? "#00ff66" : "#fff";
+    ctx.beginPath(); ctx.arc(p.x, p.y, 10, 0, Math.PI*2); ctx.fill();
+    ctx.font = "10px Arial"; ctx.fillText(n.id, p.x+12, p.y+4);
+  });
 
   requestAnimationFrame(draw);
 }
-
 draw();
+updateButtons();
 </script>
 </body>
 </html>
