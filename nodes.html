@@ -237,12 +237,9 @@ function updateButtons(){
 }
 
 function fitImage(){
-  if(!bgImage) return;
-  scale = Math.min(canvas.width/bgImage.width, canvas.height/bgImage.height);
-  offsetX = (canvas.width - bgImage.width*scale)/2;
-  let y = (canvas.height - bgImage.height*scale)/2;
-  if(fitOffsetMode) y -= 80;
-  offsetY = y;
+  scale = Math.min(canvas.width / GAME_WIDTH, canvas.height / GAME_HEIGHT);
+  offsetX = (canvas.width - GAME_WIDTH * scale) / 2;
+  offsetY = (canvas.height - GAME_HEIGHT * scale) / 2;
 }
 
 // --- DATA I/O ---
@@ -253,27 +250,18 @@ function exportData() {
   const lines = ["const levelNodes = {"];
   const ids = Object.keys(nodes);
 
-ids.forEach((id, i) => {
-  const n = nodes[id];
+  ids.forEach((id, i) => {
+    const n = nodes[id];
+    const uniqueNeighbors = [...new Set(n.neighbors || [])];
+    const uniqueTags = [...new Set(n.tags || [])];
 
-  // --- dedupe neighbors ---
-  const uniqueNeighbors = [...new Set(n.neighbors || [])];
+    const nbs = uniqueNeighbors.map(nb => `"${nb}"`).join(", ");
+    const tags = uniqueTags.map(t => `"${t}"`).join(", ");
 
-  // --- dedupe tags ---
-  const uniqueTags = [...new Set(n.tags || [])];
-
-  const nbs = uniqueNeighbors.map(nb => `"${nb}"`).join(", ");
-  const tags = uniqueTags.map(t => `"${t}"`).join(", ");
-
-  lines.push(
-const exportX = bgImage ? Math.round(n.x * (GAME_WIDTH / bgImage.width)) : Math.round(n.x);
-const exportY = bgImage ? Math.round(n.y * (GAME_HEIGHT / bgImage.height)) : Math.round(n.y);
-
-lines.push(
-  `  ${id}: { id: "${id}", x: ${exportX}, y: ${exportY}, neighbors: [${nbs}], tags: [${tags}] }${i < ids.length - 1 ? "," : ""}`
-);
-);
-});
+    lines.push(
+      `  ${id}: { id: "${id}", x: ${Math.round(n.x)}, y: ${Math.round(n.y)}, neighbors: [${nbs}], tags: [${tags}] }${i < ids.length - 1 ? "," : ""}`
+    );
+  });
 
   lines.push("};");
   output.value = lines.join("\n");
@@ -287,8 +275,9 @@ lines.push(
   }
 }
 
-function importData() {
+  function importData() {
   wrap.style.display = "block";
+
   if (!importArmed) {
     importArmed = true;
     output.readOnly = false;
@@ -310,10 +299,10 @@ function importData() {
     for (const id in source) {
       nodes[id] = {
         id,
-        x: bgImage ? source[id].x * (bgImage.width / GAME_WIDTH) : source[id].x,
-        y: bgImage ? source[id].y * (bgImage.height / GAME_HEIGHT) : source[id].y,
-        neighbors: source[id].neighbors || [],
-        tags: source[id].tags || []
+        x: source[id].x,
+        y: source[id].y,
+        neighbors: [...(source[id].neighbors || [])],
+        tags: [...(source[id].tags || [])]
       };
     }
 
@@ -460,17 +449,17 @@ function drawMagnifier(node) {
   ctx.fillRect(mx - radius, my - radius, radius * 2, radius * 2);
 
   // draw magnified background patch
-  if (bgImage) {
-    const bg = screen(0, 0);
-    ctx.drawImage(
-      bgImage,
-      mx - (p.x - bg.x) * zoom,
-      my - (p.y - bg.y) * zoom,
-      bgImage.width * scale * zoom,
-      bgImage.height * scale * zoom
-    );
-  }
-
+if (bgImage) {
+  const bg = screen(0, 0);
+  ctx.drawImage(
+    bgImage,
+    mx - (p.x - bg.x) * zoom,
+    my - (p.y - bg.y) * zoom,
+    GAME_WIDTH * scale * zoom,
+    GAME_HEIGHT * scale * zoom
+  );
+}
+  
   // draw magnified grid
   if (grid) {
     const step = 25 * scale * zoom;
@@ -637,11 +626,9 @@ function drawTagHUD() {
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  if(bgImage){
-    const p = screen(0,0);
-    ctx.drawImage(bgImage, p.x, p.y, bgImage.width*scale, bgImage.height*scale);
-  }
-
+if (bgImage) {
+  ctx.drawImage(bgImage, offsetX, offsetY, GAME_WIDTH * scale, GAME_HEIGHT * scale);
+}
   if(grid){
     ctx.strokeStyle = "rgba(255,255,255,0.15)";
     ctx.lineWidth = 1;
