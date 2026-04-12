@@ -259,11 +259,23 @@ function getNodeBoundsCenter(nodes) {
   };
 }
 
-function shrinkNodes() {
-  const { centerX, centerY } = getNodeBoundsCenter(nodes);
-  nodes = scaleNodes(nodes, 0.92, centerX, centerY);
+function getNodeBoundsTopLeft(nodes) {
+  const vals = Object.values(nodes);
+  if (!vals.length) {
+    return { x: 0, y: 0 };
+  }
+
+  return {
+    x: Math.min(...vals.map(n => n.x)),
+    y: Math.min(...vals.map(n => n.y))
+  };
 }
 
+function function shrinkNodes() {
+  const { x, y } = getNodeBoundsTopLeft(nodes);
+  nodes = scaleNodes(nodes, 0.92, x, y);
+}
+  
 function updateButtons(){
   ["none","add","connect","move","delete", "tag"].forEach(m=>{
     const btn = document.getElementById("btn-"+m);
