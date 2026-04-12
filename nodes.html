@@ -266,13 +266,13 @@ function scaleNodesXY(nodes, scaleX, scaleY, anchorX, anchorY) {
 function shrinkNodes() {
   const { x, y } = getNodeBoundsTopLeft(nodes);
   nodes = scaleNodesXY(nodes, SHRINK_SCALE_X, SHRINK_SCALE_Y, x, y);
-  saveNodesToLocal();
+  autoSave();
 }
 
 function expandNodes() {
   const { x, y } = getNodeBoundsTopLeft(nodes);
   nodes = scaleNodesXY(nodes, EXPAND_SCALE_X, EXPAND_SCALE_Y, x, y);
-  saveNodesToLocal();
+  autoSave();
 }
 
 function nudgeLeft() { nudgeNodes(-NUDGE_STEP, 0); }
@@ -285,7 +285,7 @@ function nudgeNodes(dx, dy) {
     nodes[id].x += dx;
     nodes[id].y += dy;
   }
-  saveNodesToLocal();
+  autoSave();
 }
   
 function updateButtons(){
@@ -305,10 +305,15 @@ function fitImage(){
 }
 
 // --- DATA I/O ---
-function exportData() {
-  wrap.style.display = "block";
-  output.readOnly = false;
-
+function autoSave() {
+  try {
+    localStorage.setItem("nodegen_autosave_export", buildExportText());
+  } catch (err) {
+    console.warn("Autosave failed", err);
+  }
+}
+  
+  function buildExportText() {
   const lines = ["const levelNodes = {"];
   const ids = Object.keys(nodes);
 
@@ -326,7 +331,22 @@ function exportData() {
   });
 
   lines.push("};");
-  output.value = lines.join("\n");
+  return lines.join("\n");
+}
+  
+  function exportData() {
+  wrap.style.display = "block";
+  output.readOnly = false;
+
+  const text = buildExportText();
+  output.value = text;
+
+  try {
+    localStorage.setItem("nodegen_autosave_export", text);
+  } catch (err) {
+    console.warn("Export autosave failed", err);
+  }
+
   output.focus();
   output.select();
 
