@@ -231,6 +231,13 @@ function toggleOutput() {
   if (wrap.style.display === "none") importArmed = false;
 }
 
+const SHRINK_SCALE_X = 0.98;
+const SHRINK_SCALE_Y = 0.94;
+
+const EXPAND_SCALE_X = 1.02;
+const EXPAND_SCALE_Y = 1.06;
+const NUDGE_STEP = 6;
+  
 function getNodeBoundsTopLeft(nodes) {
   const vals = Object.values(nodes);
   if (!vals.length) return { x: 0, y: 0 };
@@ -241,46 +248,37 @@ function getNodeBoundsTopLeft(nodes) {
   };
 }
 
-function scaleNodes(nodes, scale, anchorX, anchorY) {
+function scaleNodesXY(nodes, scaleX, scaleY, anchorX, anchorY) {
   const out = {};
 
   for (const id in nodes) {
     const n = nodes[id];
     out[id] = {
       ...n,
-      x: Math.round(anchorX + (n.x - anchorX) * scale),
-      y: Math.round(anchorY + (n.y - anchorY) * scale)
+      x: Math.round(anchorX + (n.x - anchorX) * scaleX),
+      y: Math.round(anchorY + (n.y - anchorY) * scaleY)
     };
   }
 
   return out;
 }
 
-const SHRINK_SCALE = 0.98;
-const EXPAND_SCALE = 1.02;
-const NUDGE_STEP = 6;
-
 function shrinkNodes() {
   const { x, y } = getNodeBoundsTopLeft(nodes);
-  nodes = scaleNodes(nodes, SHRINK_SCALE, x, y);
+  nodes = scaleNodesXY(nodes, SHRINK_SCALE_X, SHRINK_SCALE_Y, x, y);
+  saveNodesToLocal();
 }
 
 function expandNodes() {
   const { x, y } = getNodeBoundsTopLeft(nodes);
-  nodes = scaleNodes(nodes, EXPAND_SCALE, x, y);
+  nodes = scaleNodesXY(nodes, EXPAND_SCALE_X, EXPAND_SCALE_Y, x, y);
+  saveNodesToLocal();
 }
 
 function nudgeLeft() { nudgeNodes(-NUDGE_STEP, 0); }
 function nudgeRight() { nudgeNodes(NUDGE_STEP, 0); }
 function nudgeUp() { nudgeNodes(0, -NUDGE_STEP); }
 function nudgeDown() { nudgeNodes(0, NUDGE_STEP); }
-  
-function nudgeNodes(dx, dy) {
-  for (const id in nodes) {
-    nodes[id].x += dx;
-    nodes[id].y += dy;
-  }
-}
   
 function updateButtons(){
   ["none","add","connect","move","delete", "tag"].forEach(m=>{
