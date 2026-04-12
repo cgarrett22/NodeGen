@@ -122,7 +122,12 @@ button.active { background: #0a7cff; }
 <button id="btn-tag" onclick="handleTagButton()">Tag</button>
 <button id="btn-grid" onclick="toggleGrid()">Grid</button>
 <button id="btn-snap" onclick="toggleSnap()">Snap</button>
-<button onclick="fitImage()">Fit</button>
+
+<button onclick="expandNodes()">Fit</button>
+<button onclick="nudgeNodes(-10, 0)">←</button>
+<button onclick="nudgeNodes(0, -10)">↑</button>
+<button onclick="nudgeNodes(0, 10)">↓</button>
+<button onclick="nudgeNodes(10, 0)">→</button>>
 <button id="btn-shift" onclick="shrinkNodes()">Shift</button>
 
 
@@ -226,39 +231,6 @@ function toggleOutput() {
   if (wrap.style.display === "none") importArmed = false;
 }
 
-function scaleNodes(nodes, scale, centerX, centerY) {
-  const out = {};
-
-  for (const id in nodes) {
-    const n = nodes[id];
-    out[id] = {
-      ...n,
-      x: Math.round(centerX + (n.x - centerX) * scale),
-      y: Math.round(centerY + (n.y - centerY) * scale)
-    };
-  }
-
-  return out;
-}
-
-function getNodeBoundsCenter(nodes) {
-  const vals = Object.values(nodes);
-  if (!vals.length) {
-    return {
-      centerX: GAME_WIDTH / 2,
-      centerY: GAME_HEIGHT / 2
-    };
-  }
-
-  const xs = vals.map(n => n.x);
-  const ys = vals.map(n => n.y);
-
-  return {
-    centerX: (Math.min(...xs) + Math.max(...xs)) / 2,
-    centerY: (Math.min(...ys) + Math.max(...ys)) / 2
-  };
-}
-
 function getNodeBoundsTopLeft(nodes) {
   const vals = Object.values(nodes);
   if (!vals.length) return { x: 0, y: 0 };
@@ -269,9 +241,36 @@ function getNodeBoundsTopLeft(nodes) {
   };
 }
 
+function scaleNodes(nodes, scale, anchorX, anchorY) {
+  const out = {};
+
+  for (const id in nodes) {
+    const n = nodes[id];
+    out[id] = {
+      ...n,
+      x: Math.round(anchorX + (n.x - anchorX) * scale),
+      y: Math.round(anchorY + (n.y - anchorY) * scale)
+    };
+  }
+
+  return out;
+}
+
 function shrinkNodes() {
   const { x, y } = getNodeBoundsTopLeft(nodes);
   nodes = scaleNodes(nodes, 0.92, x, y);
+}
+
+function expandNodes() {
+  const { x, y } = getNodeBoundsTopLeft(nodes);
+  nodes = scaleNodes(nodes, 1.08, x, y);
+}
+
+function nudgeNodes(dx, dy) {
+  for (const id in nodes) {
+    nodes[id].x += dx;
+    nodes[id].y += dy;
+  }
 }
   
 function updateButtons(){
