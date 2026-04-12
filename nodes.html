@@ -261,9 +261,7 @@ function getNodeBoundsCenter(nodes) {
 
 function getNodeBoundsTopLeft(nodes) {
   const vals = Object.values(nodes);
-  if (!vals.length) {
-    return { x: 0, y: 0 };
-  }
+  if (!vals.length) return { x: 0, y: 0 };
 
   return {
     x: Math.min(...vals.map(n => n.x)),
@@ -271,7 +269,7 @@ function getNodeBoundsTopLeft(nodes) {
   };
 }
 
-function function shrinkNodes() {
+function shrinkNodes() {
   const { x, y } = getNodeBoundsTopLeft(nodes);
   nodes = scaleNodes(nodes, 0.92, x, y);
 }
