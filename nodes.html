@@ -90,7 +90,7 @@ canvas {
 }
 
 button {
-  padding: 8px;
+  padding: 6px;
   font-size: 11px;
   border-radius: 6px;
   border: none;
@@ -279,6 +279,14 @@ function nudgeLeft() { nudgeNodes(-NUDGE_STEP, 0); }
 function nudgeRight() { nudgeNodes(NUDGE_STEP, 0); }
 function nudgeUp() { nudgeNodes(0, -NUDGE_STEP); }
 function nudgeDown() { nudgeNodes(0, NUDGE_STEP); }
+
+function nudgeNodes(dx, dy) {
+  for (const id in nodes) {
+    nodes[id].x += dx;
+    nodes[id].y += dy;
+  }
+  saveNodesToLocal();
+}
   
 function updateButtons(){
   ["none","add","connect","move","delete", "tag"].forEach(m=>{
