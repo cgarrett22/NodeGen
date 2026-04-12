@@ -123,7 +123,7 @@ button.active { background: #0a7cff; }
 <button id="btn-grid" onclick="toggleGrid()">Grid</button>
 <button id="btn-snap" onclick="toggleSnap()">Snap</button>
 <button onclick="fitImage()">Fit</button>
-<button id="btn-shift" onclick="toggleFitOffset()">Shift</button>
+<button id="btn-shift" onclick="shrinkNodes()">Shift</button>
 
 
 
@@ -224,6 +224,44 @@ function toggleFitOffset(){ fitOffsetMode = !fitOffsetMode; fitImage(); updateBu
 function toggleOutput() {
   wrap.style.display = (wrap.style.display === "none" || !wrap.style.display) ? "block" : "none";
   if (wrap.style.display === "none") importArmed = false;
+}
+
+function scaleNodes(nodes, scale, centerX, centerY) {
+  const out = {};
+
+  for (const id in nodes) {
+    const n = nodes[id];
+    out[id] = {
+      ...n,
+      x: Math.round(centerX + (n.x - centerX) * scale),
+      y: Math.round(centerY + (n.y - centerY) * scale)
+    };
+  }
+
+  return out;
+}
+
+function getNodeBoundsCenter(nodes) {
+  const vals = Object.values(nodes);
+  if (!vals.length) {
+    return {
+      centerX: GAME_WIDTH / 2,
+      centerY: GAME_HEIGHT / 2
+    };
+  }
+
+  const xs = vals.map(n => n.x);
+  const ys = vals.map(n => n.y);
+
+  return {
+    centerX: (Math.min(...xs) + Math.max(...xs)) / 2,
+    centerY: (Math.min(...ys) + Math.max(...ys)) / 2
+  };
+}
+
+function shrinkNodes() {
+  const { centerX, centerY } = getNodeBoundsCenter(nodes);
+  nodes = scaleNodes(nodes, 0.92, centerX, centerY);
 }
 
 function updateButtons(){
