@@ -123,12 +123,12 @@ button.active { background: #0a7cff; }
 <button id="btn-grid" onclick="toggleGrid()">Grid</button>
 <button id="btn-snap" onclick="toggleSnap()">Snap</button>
 
-<button onclick="expandNodes()">Fit</button>
-<button onclick="nudgeNodes(-10, 0)">←</button>
-<button onclick="nudgeNodes(0, -10)">↑</button>
-<button onclick="nudgeNodes(0, 10)">↓</button>
-<button onclick="nudgeNodes(10, 0)">→</button>>
-<button id="btn-shift" onclick="shrinkNodes()">Shift</button>
+<button onclick="expandNodes()">Scale +</button>
+<button onclick="nudgeLeft()">←</button>
+<button onclick="nudgeUp()">↑</button>
+<button onclick="nudgeDown()">↓</button>
+<button onclick="nudgeRight()">→</button>
+<button id="btn-shift" onclick="shrinkNodes()">Scale -</button>
 
 
 
@@ -256,16 +256,25 @@ function scaleNodes(nodes, scale, anchorX, anchorY) {
   return out;
 }
 
+const SHRINK_SCALE = 0.98;
+const EXPAND_SCALE = 1.02;
+const NUDGE_STEP = 6;
+
 function shrinkNodes() {
   const { x, y } = getNodeBoundsTopLeft(nodes);
-  nodes = scaleNodes(nodes, 0.92, x, y);
+  nodes = scaleNodes(nodes, SHRINK_SCALE, x, y);
 }
 
 function expandNodes() {
   const { x, y } = getNodeBoundsTopLeft(nodes);
-  nodes = scaleNodes(nodes, 1.08, x, y);
+  nodes = scaleNodes(nodes, EXPAND_SCALE, x, y);
 }
 
+function nudgeLeft() { nudgeNodes(-NUDGE_STEP, 0); }
+function nudgeRight() { nudgeNodes(NUDGE_STEP, 0); }
+function nudgeUp() { nudgeNodes(0, -NUDGE_STEP); }
+function nudgeDown() { nudgeNodes(0, NUDGE_STEP); }
+  
 function nudgeNodes(dx, dy) {
   for (const id in nodes) {
     nodes[id].x += dx;
