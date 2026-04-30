@@ -687,7 +687,7 @@ function drawTagHUD() {
   else if (activeTag === "none") swatch = "#999999";
 
   ctx.fillStyle = "#fff";
-  ctx.font = "13px Arial";
+  ctx.font = "11px Arial";
   ctx.fillText("Tag Mode", x + 10, y + 18);
 
   ctx.fillStyle = swatch;
@@ -757,7 +757,7 @@ Object.values(nodes).forEach(n => {
   ctx.arc(p.x, p.y, 10, 0, Math.PI*2);
   ctx.fill();
 
-  ctx.font = "12px Arial";
+  ctx.font = "10px Arial";
   ctx.fillText(n.id, p.x+12, p.y+4);
 });
 
